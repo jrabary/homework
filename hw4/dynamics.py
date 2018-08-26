@@ -1,12 +1,13 @@
 import tensorflow as tf
 import numpy as np
 
+
 # Predefined function to build a feedforward neural network
-def build_mlp(input_placeholder, 
+def build_mlp(input_placeholder,
               output_size,
-              scope, 
-              n_layers=2, 
-              size=500, 
+              scope,
+              n_layers=2,
+              size=500,
               activation=tf.tanh,
               output_activation=None
               ):
@@ -17,13 +18,23 @@ def build_mlp(input_placeholder,
         out = tf.layers.dense(out, output_size, activation=output_activation)
     return out
 
+
+def build_mlp_2(hidden_layers, output_size):
+    layers = []
+    for h in hidden_layers:
+        layers.append(tf.keras.layers.Dense(h, activation=tf.nn.relu))
+    layers.append(tf.keras.layers.Dense(output_size))
+
+    return tf.keras.Sequential(layers, name='DynamicModel')
+
+
 class NNDynamicsModel():
-    def __init__(self, 
-                 env, 
+    def __init__(self,
+                 env,
                  n_layers,
-                 size, 
-                 activation, 
-                 output_activation, 
+                 size,
+                 activation,
+                 output_activation,
                  normalization,
                  batch_size,
                  iterations,
@@ -35,11 +46,14 @@ class NNDynamicsModel():
 
     def fit(self, data):
         """
-        Write a function to take in a dataset of (unnormalized)states, (unnormalized)actions, (unnormalized)next_states and fit the dynamics model going from normalized states, normalized actions to normalized state differences (s_t+1 - s_t)
+        Write a function to take in a dataset of (unnormalized)states, (unnormalized)actions, (unnormalized)next_states
+        and fit the dynamics model going from normalized states,
+        normalized actions to normalized state differences (s_t+1 - s_t)
         """
 
         """YOUR CODE HERE """
 
     def predict(self, states, actions):
-        """ Write a function to take in a batch of (unnormalized) states and (unnormalized) actions and return the (unnormalized) next states as predicted by using the model """
+        """ Write a function to take in a batch of (unnormalized) states and (unnormalized)
+        actions and return the (unnormalized) next states as predicted by using the model """
         """ YOUR CODE HERE """
