@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import numpy.random as npr
 from hw4.cost_functions import trajectory_cost_fn
 import time
 
@@ -44,29 +45,38 @@ class MPCcontroller(Controller):
         """ YOUR CODE HERE """
         """ Note: be careful to batch your simulations through the model for speed """
 
-        action_samples = tf.random_uniform((self.num_simulated_paths, self.horizon, self.env.action_space.shape[0]),
-                                           minval=self.env.action_space.low,
-                                           maxval=self.env.action_space.high)
+        # action_samples = tf.random_uniform((self.num_simulated_paths, self.horizon, self.env.action_space.shape[0]),
+        #                                    minval=self.env.action_space.low,
+        #                                    maxval=self.env.action_space.high)
 
-        state = tf.convert_to_tensor(state.astype(np.float32))
-        state = tf.reshape(state, [1, self.env.observation_space.shape[0]])
-        state = tf.tile(state, [self.num_simulated_paths, 1])  # Kx1xD_S
-        # print(state.shape)
+        action_samples = npr.uniform(self.env.action_space.low, self.env.action_space.high,
+                                  (self.num_simulated_paths, self.horizon, self.env.action_space.shape[0]))
 
-        states = [tf.expand_dims(state, axis=1)]
+        # state = tf.convert_to_tensor(state.astype(np.float32))
+        state = np.reshape(state, [1, -1])
+        state = np.tile(state, [self.num_simulated_paths, 1])  # KxHxD_S
 
+        states = [np.expand_dims(state, axis=1)]
+
+        # t0 = time.time()
         for t in range(self.horizon):
+            cur_inputs = np.concatenate([state, action_samples[:, t, :]], axis=1).astype(np.float32) # KxHxD
+            states_diff = self.dyn_model(tf.convert_to_tensor(cur_inputs)).numpy()  # KxD_S
+            state += states_diff  # KxD_S
+            states.append(np.expand_dims(state, axis=1))
 
-            cur_inputs = tf.concat([state, action_samples[:, t, :]], axis=1)  # KxHxD
-            states_diff = self.dyn_model(cur_inputs)  # KxD_S
-            next_states = state + states_diff  # KxD_S
-            states.append(tf.expand_dims(next_states, axis=1))
-            # print(next_states.shape)
+        states = tf.concat(states, axis=1).numpy()
+        # print('forward', time.time() - t0)
+        # action_samples = action_samples.numpy()
+        costs = np.zeros((self.num_simulated_paths,))
 
-        states = tf.concat(states, axis=1)
+        t0 = time.time()
 
+        for t in range(self.horizon-1):
+            costs += self.cost_fn(states[:, t, :], action_samples[:, t, 0], states[:, t+1, :])
 
+        min_j = np.argmin(costs)
+        # print('min', time.time() - t0)
 
-        print(states.shape)
-        return self.env.action_space.sample()
+        return action_samples[min_j, 0, :]
 

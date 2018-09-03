@@ -14,6 +14,9 @@ import copy
 # import matplotlib.pyplot as plt
 from hw4.cheetah_env import HalfCheetahEnvNew
 
+
+tfe = tf.contrib.eager
+
 tf.enable_eager_execution()
 
 
@@ -63,11 +66,11 @@ def train(env,
           render=False,
           learning_rate=1e-3,
           onpol_iters=10,
-          dynamics_iters=60,
+          dynamics_iters=10,
           batch_size=512,
           num_paths_random=10,
           num_paths_onpol=10,
-          num_simulated_paths=10000,
+          num_simulated_paths=100,
           env_horizon=1000,
           mpc_horizon=15,
           n_layers=2,
@@ -116,7 +119,7 @@ def train(env,
     # model.
 
     random_controller = RandomController(env)
-    rollout(random_controller, env, num_paths_random, env_horizon, "data/half_cheetah-v2")
+    rollout(random_controller, env, num_paths_random, env_horizon, "data/half_cheetah-new")
 
     # """ YOUR CODE HERE """
     #
@@ -135,14 +138,20 @@ def train(env,
     # Build dynamics model and MPC controllers.
     #
     obs_dim = env.observation_space.shape[0]
-    dyn_model = build_mlp_2([500, 500], obs_dim)
+    dyn_model = build_mlp_2([100, 100], obs_dim)
+
+    checkpoint = tfe.Checkpoint(dynamics=dyn_model)
 
     mpc_controller = MPCcontroller(env=env,
                                    dyn_model=dyn_model,
                                    horizon=mpc_horizon,
                                    cost_fn=cost_fn,
                                    num_simulated_paths=num_simulated_paths)
+    print('num simulated paths', num_simulated_paths)
 
+    checkpoint_dir = 'model_dir'
+
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
     # # ========================================================
     # #
     # # Take multiple iterations of onpolicy aggregation at each iteration refitting the dynamics model to current
@@ -155,13 +164,18 @@ def train(env,
 
         print(f"onpol iters {onpol_iters}")
 
-        data = (tf.data.Dataset.list_files('data/half_cheetah-v2/part-*')
+        data = (tf.data.Dataset.list_files('data/half_cheetah-new/part-*')
                 .interleave(tf.data.TFRecordDataset, 4)
+                .shuffle(buffer_size=1000)
+                .repeat(dynamics_iters)
                 .map(decode_example)
-                .batch(batch_size))
+                .batch(batch_size)
+                .prefetch(1)
+                )
 
         # repeat dynamics_iter
-        for i, (x, y) in enumerate(data):
+        inner_iter = 0
+        for (x, y) in data:
 
             with tf.GradientTape() as tape:
                 predictions = dyn_model(x, training=True)
@@ -169,16 +183,25 @@ def train(env,
 
             grads = tape.gradient(loss, dyn_model.variables)
 
-            optimizer = tf.train.AdamOptimizer(0.0001)
+            optimizer = tf.train.AdamOptimizer(0.001)
 
             optimizer.apply_gradients(zip(grads, dyn_model.variables),
                                       global_step=tf.train.get_or_create_global_step())
 
-            if i % 200 == 0:
-                print(f"outer step {itr}, inner step {i}, loss {loss.numpy()}")
+            if inner_iter % 100 == 0:
+                print(f"outer step {itr}, inner step {inner_iter}, loss {loss.numpy()}")
 
+            inner_iter += 1
+
+            # if inner_iter == 1000:
+            #     break
+
+        print(f'save checkpoint {checkpoint_prefix}')
+        checkpoint.save(file_prefix=checkpoint_prefix)
         # take on-policy data
-        rollout(mpc_controller, env, num_paths_random, env_horizon, "data/half_cheetah-v2")
+        print(f"outer step {itr}, inner step {inner_iter}, loss {loss.numpy()}")
+        print("rolling out on-policy data.")
+        rollout(mpc_controller, env, num_paths_onpol, env_horizon, "data/half_cheetah-new")
 
 
 def main():
@@ -220,8 +243,8 @@ def main():
 
     # Make env
     if args.env_name is "HalfCheetah-v1":
-        # env = HalfCheetahEnvNew()
-        env = gym.make('HalfCheetah-v2')
+        env = HalfCheetahEnvNew()
+        # env = gym.make('HalfCheetah-v2')
         cost_fn = cheetah_cost_fn
     train(env=env,
           cost_fn=cost_fn,

@@ -1,7 +1,7 @@
 import os, os.path
 import tensorflow as tf
 import numpy as np
-
+import time
 
 def _int64_feature(value):
     """Wrapper for inserting int64 features into Example proto."""
@@ -51,15 +51,18 @@ def rollout(agent, env, num_trajectories, horizon, output_dir):
     observations = []
     actions = []
     next_observations = []
-    for _ in range(num_trajectories):
+    for j in range(num_trajectories):
         obs_t = env.reset()
 
+        # t0 = time.time()
         for t in range(horizon):
             a_t = agent.get_action(obs_t)
+            # print(f'path {j} {t}', flush=True)
             obs_t_plus_1, reward, done, info = env.step(a_t)
-            observations.append(np.reshape(obs_t, [1, 17]))
-            actions.append(np.reshape(a_t, [1, 6]))
-            next_observations.append(np.reshape(obs_t_plus_1, (1, 17)))
+            observations.append(np.reshape(obs_t, [1, -1]))
+            actions.append(np.reshape(a_t, [1, -1]))
+            next_observations.append(np.reshape(obs_t_plus_1, (1, -1)))
+        # print('rollout step', time.time() - t0)
 
     observations = np.concatenate(observations).astype(np.float32)
 
