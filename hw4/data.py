@@ -88,4 +88,5 @@ def decode_example(example_serialized):
     action = features['action'].values
     next_state = features['next_state'].values
 
-    return tf.concat([state, action], axis=0), tf.subtract(next_state, state)
+    #return tf.concat([state, action], axis=0), tf.subtract(next_state, state)
+    return state, action, tf.subtract(next_state, state)
