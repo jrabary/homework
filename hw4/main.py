@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import pybullet
+import pickle
 import pybullet_envs
 import gym
 from hw4.dynamics import build_mlp_2
@@ -153,6 +154,8 @@ def train(env,
             )
     # normalization
     moments = compute_normalization(data)
+    with open('moments.pkl', 'wb') as f:
+        pickle.dump(moments, f)
     print(moments)
 
     # ========================================================
@@ -160,7 +163,7 @@ def train(env,
     # Build dynamics model and MPC controllers.
     #
     obs_dim = env.observation_space.shape[0]
-    dyn_model = build_mlp_2([100, 200, 200], obs_dim)
+    dyn_model = build_mlp_2([500, 500], obs_dim)
 
     checkpoint = tfe.Checkpoint(dynamics=dyn_model)
 
@@ -171,7 +174,7 @@ def train(env,
                                    num_simulated_paths=num_simulated_paths)
     print('num simulated paths', num_simulated_paths)
 
-    checkpoint_dir = 'model_dir_2'
+    checkpoint_dir = 'model_dir_3'
 
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
     # # ========================================================

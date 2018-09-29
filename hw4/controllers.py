@@ -31,6 +31,7 @@ class MPCcontroller(Controller):
     def __init__(self,
                  env,
                  dyn_model,
+                 moments=None,
                  horizon=5,
                  cost_fn=None,
                  num_simulated_paths=10,
@@ -40,6 +41,7 @@ class MPCcontroller(Controller):
         self.horizon = horizon
         self.cost_fn = cost_fn
         self.num_simulated_paths = num_simulated_paths
+        self.moments = moments
 
     def get_action(self, state):
         """ YOUR CODE HERE """
@@ -58,9 +60,15 @@ class MPCcontroller(Controller):
 
         states = [np.expand_dims(state, axis=1)]
 
+        eps = 1e-6
         # t0 = time.time()
         for t in range(self.horizon):
-            cur_inputs = np.concatenate([state, action_samples[:, t, :]], axis=1).astype(np.float32) # KxHxD
+            action = action_samples[:, t, :]
+            if self.moments:
+                s_norm = (state - self.moments['state_mean'])/(self.moments['state_var'] + eps)
+                a_norm = (action - self.moments['act_mean'])/(self.moments['act_var'] + eps)
+
+            cur_inputs = np.concatenate([s_norm, a_norm], axis=1).astype(np.float32)  # KxHxD
             states_diff = self.dyn_model(tf.convert_to_tensor(cur_inputs)).numpy()  # KxD_S
             state += states_diff  # KxD_S
             states.append(np.expand_dims(state, axis=1))
