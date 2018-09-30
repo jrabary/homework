@@ -154,7 +154,7 @@ def train(env,
             )
     # normalization
     moments = compute_normalization(data)
-    with open(os.path.join(data_dir, 'moments.pkl'), 'wb') as f:
+    with open(f'{data_dir}/moments.pkl', 'wb') as f:
         pickle.dump(moments, f)
     print(moments)
 
