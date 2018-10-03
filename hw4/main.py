@@ -138,7 +138,6 @@ def train(env,
     random_controller = RandomController(env)
     rollout(random_controller, env, num_paths_random, env_horizon, data_dir)
 
-
     # ========================================================
     #
     # The random data will be used to get statistics (mean
@@ -163,9 +162,17 @@ def train(env,
     # Build dynamics model and MPC controllers.
     #
     obs_dim = env.observation_space.shape[0]
+    act_dim = env.action_space.shape[0]
+
     dyn_model = build_mlp_2([500, 500], obs_dim)
+    dyn_model(tf.random_uniform([1, obs_dim + act_dim]))
 
     checkpoint = tfe.Checkpoint(dynamics=dyn_model)
+    # load existing checkpoint in the model_dir
+    checkpoint_path = tf.train.latest_checkpoint(model_dir)
+    if checkpoint_path:
+        print(f"Restoring checkpoint {checkpoint_path}")
+        checkpoint.restore(checkpoint_path)
 
     mpc_controller = MPCcontroller(env=env,
                                    dyn_model=dyn_model,
@@ -213,7 +220,7 @@ def train(env,
 
             grads = tape.gradient(loss, dyn_model.variables)
 
-            optimizer = tf.train.AdamOptimizer(0.01)
+            optimizer = tf.train.AdamOptimizer(0.001)
 
             optimizer.apply_gradients(zip(grads, dyn_model.variables),
                                       global_step=tf.train.get_or_create_global_step())
@@ -281,9 +288,8 @@ def main():
         cost_fn = cheetah_cost_fn
     train(env=env,
           cost_fn=cost_fn,
-          data_dir='data',
+          data_dir='data/half_cheetah_bullet',
           model_dir='model_dir',
-          logdir=logdir,
           render=args.render,
           learning_rate=args.learning_rate,
           onpol_iters=args.onpol_iters,

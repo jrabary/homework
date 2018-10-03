@@ -19,7 +19,7 @@ env = gym.make("HalfCheetahBulletEnv-v0")
 env.render(mode='human')
 # env = HalfCheetahEnvNew()
 
-with open('hw4/moments.pkl', 'rb') as f:
+with open('hw4/data/half_cheetah_bullet/moments.pkl', 'rb') as f:
     moments = pickle.load(f)
 
 print(moments)
@@ -27,14 +27,16 @@ print(moments)
 obs_dim = env.observation_space.shape[0]
 act_dim = env.action_space.shape[0]
 print('observation dim', obs_dim)
-dyn_model = build_mlp_2([100, 200, 200], obs_dim)
+dyn_model = build_mlp_2([500, 500], obs_dim)
 
 # init model
 dyn_model(tf.random_uniform([1, obs_dim + act_dim]))
 checkpoint = tfe.Checkpoint(dynamics=dyn_model)
 
-checkpoint_dir = 'model_dir_2'
-checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+checkpoint_dir = 'hw4/model_dir'
+checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir)
+print(f"Load checkpoint {checkpoint_path}")
+checkpoint.restore(checkpoint_path)
 
 controller = MPCcontroller(env, dyn_model, moments=moments, cost_fn=cheetah_cost_fn, horizon=15, num_simulated_paths=1000)
 

@@ -11,7 +11,7 @@ def cheetah_cost_fn(state, action, next_state):
     front_leg_idx = 14  # 5 gym
     front_shin_idx = 16  # 6 gym
     front_foot_idx = 18  # 7 gym
-    x_velocity_idx = 4  # 17 gym
+    x_velocity_idx = 3  # 17 gym
     if len(state.shape) > 1:
         heading_penalty_factor = 10
         scores = np.zeros((state.shape[0],))
@@ -52,7 +52,7 @@ def cheetah_cost_fn(state, action, next_state):
         score += heading_penalty_factor
 
     # score -= (next_state[17] - state[17]) / 0.01  # + 0.1 * (np.sum(action**2))
-    score = state[x_velocity_idx]
+    score -= state[x_velocity_idx]
     return score
 
 
